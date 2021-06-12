@@ -14,9 +14,9 @@ namespace Telegram_Bot
 {
     class Program
     {
-        private static string Token { get; set; } = "1897697226:AAHgeTPkq1GZ1Ysg0vmmwRYZCrT6WRhhVBw"; //приватный токен
-        private static TelegramBotClient client; // инициализация объекта сервер-клиент Telegram Bot Api
-        static Dictionary<int, Account> Accounts = new Dictionary<int, Account>();
+        private static string Token { get; set; } = "1897697226:AAHgeTPkq1GZ1Ysg0vmmwRYZCrT6WRhhVBw"; //приватный токен полученный у BotFather
+        private static TelegramBotClient client; // объявление объекта сервер-клиент Telegram Bot Api
+        static Dictionary<int, Account> Accounts = new Dictionary<int, Account>(); //временное хранилище в оперативной памяти, Словарь
         static async Task Main(string[] args)
         {
             await ReadFromLog();                                             //считываем аккаунты с файла тхт. 
@@ -38,9 +38,9 @@ namespace Telegram_Bot
             //Accounts.Add(12321, test21);
             //Accounts.Add(12312321, test121);
             //Accounts.Add(312312, test221);
-            client = new TelegramBotClient(Token);
-            client.StartReceiving();
-            client.OnMessage += OnMessageHandler;
+            client = new TelegramBotClient(Token); // Инициализация объекта сервер-клиент Telegram Bot Api
+            client.StartReceiving(); // бессконечно слушать телеграм
+            client.OnMessage += OnMessageHandler;  // добавление события в обработчик событий (делегат)
             Console.ReadLine();
             client.StopReceiving();
 
@@ -52,8 +52,8 @@ namespace Telegram_Bot
         private static async void OnMessageHandler(object sender, MessageEventArgs e)
         {
             
-            Account account;
-            var msg = e.Message;
+            Account account; // инстанция одного юзера
+            var msg = e.Message;   //привязка полученного сообщения к переменной
 
             if (msg.Type == MessageType.Photo) // обработка установки фотографии в анкету
             {
@@ -61,7 +61,7 @@ namespace Telegram_Bot
                 string filepath = msg.From.Id + "." + file.Split('.').Last();
                 using (FileStream fileStream = new FileStream("C:\\images\\" + filepath, FileMode.OpenOrCreate, FileAccess.ReadWrite))
                 {
-                    var st = client.DownloadFileAsync(file).Result;
+                    var st = client.DownloadFileAsync(file).Result; //cкачивание отправленной фотки
                     st.Position = 0;
                     st.CopyTo(fileStream);
                 }
@@ -123,12 +123,18 @@ namespace Telegram_Bot
 
                         account.tg_username = "@" + msg.From.Username;
                         account.language = "Русский";
-                        foreach (KeyValuePair<int, Account> keyValue in Accounts)
+                        //foreach (KeyValuePair<int, Account> keyValue in Accounts)
+                        //{
+                        //    if (keyValue.Key == msg.From.Id)
+                        //    {
+                        //        return;
+                        //    }
+                        //}
+                        if (Accounts.ContainsKey(msg.From.Id))
                         {
-                            if (keyValue.Key == msg.From.Id)
-                            {
-                                return;
-                            }
+                            await client.SendTextMessageAsync(msg.Chat.Id, "Вы выбрали русский! Пожалуйста выберите опцию из меню ниже:", replyMarkup: GetButtons());
+                            await WriteToLog(account, msg);
+                            break;
                         }
                         Accounts.Add(msg.From.Id, account);
                         await WriteToLog(account, msg);  // Запись в логи
@@ -136,19 +142,24 @@ namespace Telegram_Bot
                         break;
                     case "English":  //обработка выбора языка 
                         account = new Account(msg.From.Id);
-                        foreach (KeyValuePair<int, Account> keyValue in Accounts)
-                        {
-                            if (keyValue.Key == msg.From.Id && keyValue.Value.language == "English")
-                            {
-                                await client.SendTextMessageAsync(msg.Chat.Id, "You've chose English as your primary Language, select command from the menu below:", replyMarkup: GetButtonsEn());
-                                return;
-                            }
+                        //foreach (KeyValuePair<int, Account> keyValue in Accounts)
+                        //{
+                        //    if (keyValue.Key == msg.From.Id && keyValue.Value.language == "English")
+                        //    {
+                        //        await client.SendTextMessageAsync(msg.Chat.Id, "You've chose English as your primary Language, select command from the menu below:", replyMarkup: GetButtonsEn());
+                        //        return;
+                        //    }
 
-                        }
+                        //}
 
                         account.tg_username = "@" + msg.From.Username;
                         account.language = "English";
-                        Accounts.Add(msg.From.Id, account);
+                        if (Accounts.ContainsKey(msg.From.Id))
+                            {
+                            await client.SendTextMessageAsync(msg.Chat.Id, "You've chose English as your primary Language, select command from the menu below:", replyMarkup: GetButtonsEn());
+                            await WriteToLog(account, msg);
+                            break; }
+                            Accounts.Add(msg.From.Id, account);
                         await WriteToLog(account, msg);
                         await client.SendTextMessageAsync(msg.Chat.Id, "You've chose English as your primary Language, select command from the menu below:", replyMarkup: GetButtonsEn());
                         break;
@@ -181,7 +192,7 @@ namespace Telegram_Bot
                         int randresult1 = rand1.Next(temp1.Length);
                         if (isOnce1)
                         {
-                            await client.SendTextMessageAsync(msg.Chat.Id, $"Нашелся твой партнер для изучения Английского!:  {temp1[randresult1].tg_username}\n {temp1[randresult1].tg_about} ", replyMarkup: GetButtons());
+                            await client.SendTextMessageAsync(msg.Chat.Id, $"Нашелся твой партнер для изучения Английского!:  {temp1[randresult1].tg_username} написал о себе: \n {temp1[randresult1].tg_about} ", replyMarkup: GetButtons());
                             string path = @"c:\images\" + temp1[randresult1].tg_id + ".jpg";
                             if (File.Exists(path))
                             {
@@ -218,7 +229,7 @@ namespace Telegram_Bot
                         int randresult = rand.Next(temp.Length);
                         if (isOnce)
                         {
-                            await client.SendTextMessageAsync(msg.Chat.Id, $"Found a pair to learn Russian!: {temp[randresult].tg_username}\n {temp[randresult].tg_about} ", replyMarkup: GetButtonsEn());
+                            await client.SendTextMessageAsync(msg.Chat.Id, $"Found a pair to learn Russian!: {temp[randresult].tg_username} says about him: \n  {temp[randresult].tg_about} ", replyMarkup: GetButtonsEn());
                             string path = @"c:\images\" + temp[randresult].tg_id + ".jpg";
                             if (File.Exists(path))
                             {
@@ -241,7 +252,7 @@ namespace Telegram_Bot
                         await client.SendTextMessageAsync(msg.Chat.Id, $"Currently, {Accounts.Count} users registered ", replyMarkup: GetButtonsEn());
                         break;
                     case "Статистика":// обработка кнопки статистики 
-                        await client.SendTextMessageAsync(msg.Chat.Id, $"В данный момент, {Accounts.Count} пользователей зарегистрировано  :", replyMarkup: GetButtons());
+                        await client.SendTextMessageAsync(msg.Chat.Id, $"В данный момент, {Accounts.Count} пользователей зарегистрировано ", replyMarkup: GetButtons());
                         break;
                     default:     // обработка кнопки описания анкеты
                         foreach (KeyValuePair<int, Account> keyValue in Accounts)
